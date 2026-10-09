@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:backgammon/game_screen.dart';
+import 'package:backgammon/engine.dart';
 
 void _custom(BgEngine e, Map<int, int> pts, {bool white = true}) {
   e.points = List.filled(24, 0);
