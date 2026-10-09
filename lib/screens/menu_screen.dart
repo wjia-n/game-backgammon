@@ -48,45 +48,81 @@ class _MenuScreenState extends State<MenuScreen> {
 
   Future<void> _renamePlayer(int index) async {
     final ctrl = TextEditingController(text: s.playerNames[index]);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: t.woodMid,
-        title: Text(
-          index == 0 ? 'Name the White player' : 'Name the Black player',
-          style: Sultan.label(16, theme: t),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLength: 16,
-          style: Sultan.body(16, theme: t),
-          decoration: InputDecoration(
-            counterText: '',
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: t.accent),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: t.accentLight, width: 2),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: Sultan.label(14, theme: t).copyWith(color: t.ivory)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: Text('Save', style: Sultan.label(14, theme: t)),
-          ),
-        ],
-      ),
-    );
-    if (result != null) {
+    final focus = FocusNode();
+    final original = s.playerNames[index];
+    var committed = false;
+    // Commit on focus loss (not just keyboard-done): persist the current
+    // draft so the name is never lost, without closing the dialog.
+    focus.addListener(() {
+      if (!focus.hasFocus && !committed) {
+        s.setPlayerName(index, ctrl.text);
+      }
+    });
+    // Save on every keystroke so the rename is durable even if the dialog
+    // is dismissed any other way.
+    void persistDraft(String v) => s.setPlayerName(index, v);
+    // Explicit commit: close the dialog with the final value.
+    void commit(BuildContext ctx) {
+      if (committed || !ctx.mounted) return;
+      committed = true;
       widget.audio.click();
-      await s.setPlayerName(index, result);
+      Navigator.pop(ctx, ctrl.text);
+    }
+
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: t.woodMid,
+          title: Text(
+            index == 0 ? 'Name the White player' : 'Name the Black player',
+            style: Sultan.label(16, theme: t),
+          ),
+          content: TextField(
+            controller: ctrl,
+            focusNode: focus,
+            autofocus: true,
+            maxLength: 16,
+            style: Sultan.body(16, theme: t),
+            onChanged: persistDraft,
+            onSubmitted: (_) => commit(ctx),
+            decoration: InputDecoration(
+              counterText: '',
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: t.accent),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide:
+                    BorderSide(color: t.accentLight, width: 2),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                committed = true;
+                Navigator.pop(ctx);
+              },
+              child: Text('Cancel',
+                  style: Sultan.label(14, theme: t).copyWith(color: t.ivory)),
+            ),
+            TextButton(
+              onPressed: () => commit(ctx),
+              child: Text('Save', style: Sultan.label(14, theme: t)),
+            ),
+          ],
+        ),
+      );
+      if (result != null) {
+        await s.setPlayerName(index, result);
+      } else {
+        // Dismissed without committing (back button, tap outside, Cancel):
+        // revert the keystroke saves so nothing half-typed sticks.
+        await s.setPlayerName(index, original);
+      }
+    } finally {
+      focus.dispose();
+      ctrl.dispose();
     }
   }
 
