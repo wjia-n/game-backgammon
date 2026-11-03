@@ -1,4 +1,4 @@
-package com.games.board.backgammon
+package com.gameswajiha.backgammon
 
 import io.flutter.embedding.android.FlutterActivity
 

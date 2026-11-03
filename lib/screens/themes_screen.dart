@@ -81,7 +81,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
                               Icon(Icons.lock,
                                   size: 13, color: t.accentLight),
                               const SizedBox(width: 4),
-                              Text('Gold Star',
+                              Text('Go Pro',
                                   style: Sultan.label(12, theme: t)),
                             ],
                           ),
