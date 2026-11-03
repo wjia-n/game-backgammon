@@ -311,7 +311,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                     _IconLink(
                       icon: Icons.workspace_premium,
-                      label: s.isPro ? 'Pro ✓' : 'Go Pro',
+                      label: 'Gold Star',
                       theme: t,
                       onTap: _openPro,
                     ),

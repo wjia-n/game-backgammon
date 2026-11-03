@@ -2,20 +2,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
-/// Real Play Billing tip jar for Backgammon: Tip jar (all content is free and unlocked).
+/// Store service for backgammon: a single cosmetic Gold Star badge.
 ///
-/// Product IDs (the user creates these in Play Console):
-/// - `backgammoncoffee` — CONSUMABLE tip.
-/// - `backgammonchocolate` — CONSUMABLE tip.
+/// Product ID (the user creates this in Play Console / App Store Connect):
+/// - `backgammonstar` — NON-CONSUMABLE Gold Star badge, $1.99.
 ///
-/// Until the products exist in Play Console (or on any store error) the
+/// Until the product exists in the store (or on any store error) the
 /// service exposes [storeReady] = false and the UI shows an honest
 /// "available after store setup" state — never a fake buy button.
+/// The badge is cosmetic only: it changes nothing in the game and
+/// nothing in the game depends on it.
 class StoreService {
-  static const coffeeId = 'backgammoncoffee';
-  static const chocolateId = 'backgammonchocolate';
-  static const productIds = {coffeeId, chocolateId};
-  ProductDetails? get proProduct => null; // Pro removed — everything is free
+  static const starId = 'backgammonstar';
+  static const productIds = {starId};
+  ProductDetails? get proProduct => null;
 
   final InAppPurchase _iap = InAppPurchase.instance;
 
@@ -28,12 +28,12 @@ class StoreService {
 
   /// Callbacks the UI wires up.
   final ValueNotifier<String?> lastThanks = ValueNotifier(null);
-  final ValueNotifier<bool> proPurchased = ValueNotifier(true); // everything unlocked
+  final ValueNotifier<bool> proPurchased = ValueNotifier(true);
+  final ValueNotifier<bool> starOwned = ValueNotifier(false);
   final ValueNotifier<bool> purchaseInProgress = ValueNotifier(false);
   final ValueNotifier<String?> purchaseError = ValueNotifier(null);
 
-  ProductDetails? get coffeeProduct => _byId(coffeeId);
-  ProductDetails? get chocolateProduct => _byId(chocolateId);
+  ProductDetails? get starProduct => _byId(starId);
 
   ProductDetails? _byId(String id) {
     for (final p in products) {
@@ -63,7 +63,6 @@ class StoreService {
       }
       products = resp.productDetails;
       if (resp.notFoundIDs.isNotEmpty) {
-        // Products not created in Play Console yet — normal before launch.
         error = 'Available after store setup';
         return;
       }
@@ -79,10 +78,9 @@ class StoreService {
     for (final p in list) {
       if (p.status == PurchaseStatus.purchased ||
           p.status == PurchaseStatus.restored) {
-        if (p.productID == chocolateId) {
-          lastThanks.value = 'Thank you for the chocolate!';
-        } else if (p.productID == coffeeId) {
-          lastThanks.value = 'Thank you for the coffee!';
+        if (p.productID == starId) {
+          starOwned.value = true;
+          lastThanks.value = 'Thank you! You earned a Gold Star.';
         }
       } else if (p.status == PurchaseStatus.error) {
         purchaseError.value = 'Purchase failed — please try again.';
@@ -101,16 +99,15 @@ class StoreService {
     }
   }
 
-  
   Future<void> buyPro() async {
-    // Pro removed — everything is free and unlocked.
+    // No-op: kept for API compatibility; there is no gated content.
   }
 
-  Future<void> buyTip(ProductDetails product) async {
+  Future<void> buyStar(ProductDetails product) async {
     purchaseError.value = null;
     purchaseInProgress.value = true;
     try {
-      await _iap.buyConsumable(
+      await _iap.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: product),
       );
     } catch (_) {
@@ -119,8 +116,6 @@ class StoreService {
     }
   }
 
-  /// Restore Pro on a new device. The purchase stream delivers restored
-  /// purchases, which flip [proPurchased].
   Future<void> restore() async {
     purchaseError.value = null;
     try {
@@ -133,6 +128,7 @@ class StoreService {
   Future<void> dispose() async {
     await _sub?.cancel();
     lastThanks.dispose();
+    starOwned.dispose();
     purchaseInProgress.dispose();
     purchaseError.dispose();
   }
